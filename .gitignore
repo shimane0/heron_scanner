@@ -1,0 +1,34 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Generated files (build_runner)
+# NOTE: Pigeon生成ファイル（lib/src/generated/, android/...g.kt, ios/...g.swift）は
+# build_runnerではなくpigeonコマンドで生成され、プラグインの動作に必要なため、
+# バージョン管理に含める。

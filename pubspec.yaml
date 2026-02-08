@@ -1,0 +1,44 @@
+name: heron_scanner
+description: >-
+  camera + google_mlkit_barcode_scanning を統合した高パフォーマンスバーコードスキャナーWidget。
+  スムーズオーバーレイ描画、スキャンウィンドウ、画像キャプチャ機能を備え、
+  カスタマイズ可能なAPIで他のFlutterアプリに簡単に組み込める。
+version: 1.0.0
+homepage: https://github.com/user/heron_scanner
+repository: https://github.com/user/heron_scanner
+issue_tracker: https://github.com/user/heron_scanner/issues
+
+environment:
+  sdk: ^3.10.7
+  flutter: ">=3.27.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  camera: ^0.11.1
+  google_mlkit_barcode_scanning: ^0.12.0
+  image: ^4.7.2
+  path: ^1.9.1
+  path_provider: ^2.1.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  pigeon: ^25.3.2
+
+topics:
+  - barcode
+  - scanner
+  - mlkit
+  - camera
+  - qrcode
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.ochipan.heron_scanner
+        pluginClass: HeronScannerPlugin
+      ios:
+        pluginClass: HeronScannerPlugin
