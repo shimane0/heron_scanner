@@ -4,9 +4,9 @@ description: >-
   スムーズオーバーレイ描画、スキャンウィンドウ、画像キャプチャ機能を備え、
   カスタマイズ可能なAPIで他のFlutterアプリに簡単に組み込める。
 version: 1.0.0
-homepage: https://github.com/user/heron_scanner
-repository: https://github.com/user/heron_scanner
-issue_tracker: https://github.com/user/heron_scanner/issues
+homepage: https://github.com/shimane0/heron_scanner
+repository: https://github.com/shimane0/heron_scanner
+issue_tracker: https://github.com/shimane0/heron_scanner/issues
 
 environment:
   sdk: ^3.10.7

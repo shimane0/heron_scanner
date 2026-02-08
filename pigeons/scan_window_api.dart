@@ -4,7 +4,7 @@ import 'package:pigeon/pigeon.dart';
 ///
 /// コード生成コマンド:
 /// ```bash
-/// cd local_packages/heron_scanner
+/// cd heron_scanner
 /// dart run pigeon --input pigeons/scan_window_api.dart
 /// ```
 @ConfigurePigeon(
