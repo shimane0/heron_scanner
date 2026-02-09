@@ -588,12 +588,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final screenSize = _widgetSize;
     if (screenSize.isEmpty) return barcodes;
 
-    final scanRect = Rect.fromLTRB(
-      screenSize.width * marginRatio,
-      screenSize.height * marginRatio,
-      screenSize.width * (1 - marginRatio),
-      screenSize.height * (1 - marginRatio),
-    );
+    final scanRect = _squareScanRect(screenSize, marginRatio);
 
     final isFrontCamera = _cameraController?.description.lensDirection == CameraLensDirection.front;
     final scaleX = screenSize.width / imageSize.width;
@@ -627,12 +622,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 
     if (widgetSize.isEmpty || textureSize.isEmpty) return;
 
-    final scanWindowInWidget = Rect.fromLTRB(
-      widgetSize.width * marginRatio,
-      widgetSize.height * marginRatio,
-      widgetSize.width * (1.0 - marginRatio),
-      widgetSize.height * (1.0 - marginRatio),
-    );
+    final scanWindowInWidget = _squareScanRect(widgetSize, marginRatio);
 
     final normalizedWindow = _calculateScanWindowRelativeToTextureInPercentage(
       scanWindowInWidget,
@@ -651,6 +641,15 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         bottom: normalizedWindow.bottom,
       ),
     );
+  }
+
+  /// 短辺を基準にした正方形のスキャン領域を返す
+  static Rect _squareScanRect(Size size, double marginRatio) {
+    final shortSide = size.width < size.height ? size.width : size.height;
+    final side = shortSide * (1 - 2 * marginRatio);
+    final left = (size.width - side) / 2;
+    final top = (size.height - side) / 2;
+    return Rect.fromLTWH(left, top, side, side);
   }
 
   bool _isSameRect(Rect? a, Rect b, {double epsilon = 0.0005}) {
@@ -1336,10 +1335,12 @@ class _ScanWindowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final marginX = size.width * marginRatio;
-    final marginY = size.height * marginRatio;
+    final shortSide = size.width < size.height ? size.width : size.height;
+    final side = shortSide * (1 - 2 * marginRatio);
+    final left = (size.width - side) / 2;
+    final top = (size.height - side) / 2;
 
-    final scanWindow = Rect.fromLTRB(marginX, marginY, size.width - marginX, size.height - marginY);
+    final scanWindow = Rect.fromLTWH(left, top, side, side);
 
     // 画面全体を覆うパス
     final backgroundPath = Path()..addRect(Offset.zero & size);
