@@ -796,6 +796,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   }
 
   /// キャプチャ画像の回転を考慮してCodeMetadataを生成
+  ///
+  /// ML Kitが返すコーナー座標は既に回転補正済み（正立座標系）であるため、
+  /// 座標の追加回転は不要。回転後の画像サイズで直接正規化する。
+  /// JPEG変換時の `img.copyRotate` で画像自体が正立方向に回転されるため、
+  /// 正規化座標はそのまま正しい位置を指す。
   CodeMetadata _createCodeMetadataForCapture(
     DetectedBarcode barcode,
     Size imageSize,
@@ -813,12 +818,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       rawCorners.addAll([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft]);
     }
 
+    // ML Kit座標は正立座標系なので、回転後の画像サイズで直接正規化する
     final rotatedSize = _rotatedCaptureSize(imageSize, rotationDegrees);
-    final rotatedCorners = rawCorners
-        .map((point) => _rotateCapturePoint(point, imageSize, rotationDegrees))
-        .toList();
-
-    final codeCorners = rotatedCorners
+    final codeCorners = rawCorners
         .map(
           (point) => CodeCorner(x: point.dx / rotatedSize.width, y: point.dy / rotatedSize.height),
         )
@@ -945,19 +947,6 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   Size _rotatedCaptureSize(Size imageSize, int rotationDegrees) {
     final isRotated = rotationDegrees == 90 || rotationDegrees == 270;
     return isRotated ? Size(imageSize.height, imageSize.width) : imageSize;
-  }
-
-  Offset _rotateCapturePoint(Offset point, Size imageSize, int rotationDegrees) {
-    if (rotationDegrees == 90) {
-      return Offset(point.dy, imageSize.width - point.dx);
-    }
-    if (rotationDegrees == 180) {
-      return Offset(imageSize.width - point.dx, imageSize.height - point.dy);
-    }
-    if (rotationDegrees == 270) {
-      return Offset(imageSize.height - point.dy, point.dx);
-    }
-    return point;
   }
 
   // ---------------------------------------------------------------------------
