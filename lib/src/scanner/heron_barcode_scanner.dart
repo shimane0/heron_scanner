@@ -6,6 +6,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
@@ -141,6 +142,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   // オーバーレイ用の状態
   Size _imageSize = Size.zero;
   Size _widgetSize = Size.zero;
+  Rect _previewRect = Rect.zero;
+  InputImageRotation? _inputImageRotation;
   bool _torchEnabled = false;
 
   // 自動停止機能用
@@ -499,11 +502,20 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     _isProcessing = true;
 
     try {
-      final inputImage = _convertCameraImage(image);
+      final rotationDegrees = _rotationCompensationDegrees(controller);
+      final inputRotation = _getInputImageRotation(rotationDegrees);
+      if (inputRotation == null) {
+        _isProcessing = false;
+        return;
+      }
+
+      final inputImage = _convertCameraImage(image, inputRotation);
       if (inputImage == null) {
         _isProcessing = false;
         return;
       }
+
+      final captureRotationDegrees = _captureRotationDegrees(controller, image.width, image.height);
 
       final barcodes = await _barcodeScanner!.processImage(inputImage);
 
@@ -512,11 +524,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         return;
       }
 
-      final sensorOrientation = controller.description.sensorOrientation;
-      final isRotated = sensorOrientation == 90 || sensorOrientation == 270;
-      final imageSize = isRotated
-          ? Size(image.height.toDouble(), image.width.toDouble())
-          : Size(image.width.toDouble(), image.height.toDouble());
+      final imageSize = Size(image.width.toDouble(), image.height.toDouble());
 
       var detectedBarcodes = barcodes.map((barcode) {
         return DetectedBarcode(
@@ -546,7 +554,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
           width: image.width,
           height: image.height,
           format: image.format.group,
-          sensorOrientation: controller.description.sensorOrientation,
+          rotationDegrees: captureRotationDegrees,
           quality: widget.captureQuality,
         );
         _lastDetectedFrameSize = imageSize;
@@ -560,6 +568,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       }
 
       _imageSize = imageSize;
+      _inputImageRotation = inputRotation;
       _overlayController.updateBarcodes(detectedBarcodes);
 
       widget.onDetect?.call(detectedBarcodes, imageSize);
@@ -600,25 +609,26 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     double marginRatio,
   ) {
     final screenSize = _widgetSize;
-    if (screenSize.isEmpty) return barcodes;
+    final previewRect = _previewRect;
+    final rotation = _inputImageRotation;
+    final controller = _cameraController;
+    if (screenSize.isEmpty || previewRect.isEmpty || rotation == null || controller == null) {
+      return barcodes;
+    }
 
     final scanRect = _squareScanRect(screenSize, marginRatio);
 
-    final isFrontCamera = _cameraController?.description.lensDirection == CameraLensDirection.front;
-    final scaleX = screenSize.width / imageSize.width;
-    final scaleY = screenSize.height / imageSize.height;
-    final scale = scaleX > scaleY ? scaleX : scaleY;
-    final offsetX = (screenSize.width - imageSize.width * scale) / 2;
-    final offsetY = (screenSize.height - imageSize.height * scale) / 2;
+    final lensDirection = controller.description.lensDirection;
 
     return barcodes.where((barcode) {
       final center = barcode.boundingBox.center;
-      var x = center.dx;
-      final y = center.dy;
-      if (isFrontCamera) {
-        x = imageSize.width - x;
-      }
-      final screenPoint = Offset(x * scale + offsetX, y * scale + offsetY);
+      final screenPoint = _translatePoint(
+        center,
+        imageSize: imageSize,
+        previewRect: previewRect,
+        rotation: rotation,
+        lensDirection: lensDirection,
+      );
       return scanRect.contains(screenPoint);
     }).toList();
   }
@@ -751,7 +761,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 
       await File(destPath).writeAsBytes(jpegBytes);
 
-      final codeMetadata = _createCodeMetadata(barcode, frameSize);
+      final codeMetadata = _createCodeMetadataForCapture(
+        barcode,
+        frameSize,
+        params.rotationDegrees,
+      );
       return CaptureResult(imagePath: destPath, codeMetadata: codeMetadata);
     } on Exception catch (e) {
       debugPrint('Stream frame capture error: $e');
@@ -781,17 +795,43 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     return CodeMetadata(codeCorners: codeCorners, codeType: barcode.formatName);
   }
 
+  /// キャプチャ画像の回転を考慮してCodeMetadataを生成
+  CodeMetadata _createCodeMetadataForCapture(
+    DetectedBarcode barcode,
+    Size imageSize,
+    int rotationDegrees,
+  ) {
+    final corners = barcode.corners;
+    final rawCorners = <Offset>[];
+
+    if (corners != null && corners.length == 4) {
+      for (final corner in corners) {
+        rawCorners.add(Offset(corner.x.toDouble(), corner.y.toDouble()));
+      }
+    } else {
+      final rect = barcode.boundingBox;
+      rawCorners.addAll([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft]);
+    }
+
+    final rotatedSize = _rotatedCaptureSize(imageSize, rotationDegrees);
+    final rotatedCorners = rawCorners
+        .map((point) => _rotateCapturePoint(point, imageSize, rotationDegrees))
+        .toList();
+
+    final codeCorners = rotatedCorners
+        .map(
+          (point) => CodeCorner(x: point.dx / rotatedSize.width, y: point.dy / rotatedSize.height),
+        )
+        .toList();
+
+    return CodeMetadata(codeCorners: codeCorners, codeType: barcode.formatName);
+  }
+
   // ---------------------------------------------------------------------------
   // カメラ画像変換
   // ---------------------------------------------------------------------------
 
-  InputImage? _convertCameraImage(CameraImage image) {
-    final camera = _cameraController?.description;
-    if (camera == null) return null;
-
-    final rotation = _getInputImageRotation(camera.sensorOrientation);
-    if (rotation == null) return null;
-
+  InputImage? _convertCameraImage(CameraImage image, InputImageRotation rotation) {
     final format = _getInputImageFormat(image.format.group);
     if (format == null) return null;
 
@@ -818,8 +858,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     return allBytes.done().buffer.asUint8List();
   }
 
-  InputImageRotation? _getInputImageRotation(int sensorOrientation) {
-    return switch (sensorOrientation) {
+  InputImageRotation? _getInputImageRotation(int rotationDegrees) {
+    return switch (rotationDegrees) {
       0 => InputImageRotation.rotation0deg,
       90 => InputImageRotation.rotation90deg,
       180 => InputImageRotation.rotation180deg,
@@ -828,12 +868,96 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     };
   }
 
+  int _rotationCompensationDegrees(CameraController controller) {
+    final sensorOrientation = controller.description.sensorOrientation;
+    if (Platform.isIOS) return sensorOrientation;
+
+    final deviceRotation = _deviceOrientationToDegrees(controller.value.deviceOrientation);
+    final isFrontCamera = controller.description.lensDirection == CameraLensDirection.front;
+
+    if (isFrontCamera) {
+      return (sensorOrientation + deviceRotation) % 360;
+    }
+    return (sensorOrientation - deviceRotation + 360) % 360;
+  }
+
+  /// キャプチャ画像を正しいデバイス方向にするために必要な回転角度を計算する。
+  ///
+  /// フレームデータの実際の方向をセンサー情報と比較することで、
+  /// プラットフォームやプラグインの実装に依存せず動的に判定する。
+  /// - フレームがセンサーのネイティブ方向のまま → ソフトウェア回転が必要
+  /// - フレームが既にプラットフォームによって方向補正済み → 回転不要
+  int _captureRotationDegrees(CameraController controller, int frameWidth, int frameHeight) {
+    final sensorOrientation = controller.description.sensorOrientation;
+
+    // センサーのネイティブ方向が横長かどうか
+    final isLandscapeNative = sensorOrientation == 90 || sensorOrientation == 270;
+    // フレームが横長かどうか
+    final isLandscapeFrame = frameWidth > frameHeight;
+
+    // フレームがセンサーのネイティブ方向のまま配信されているか判定
+    final isFrameInNativeOrientation = isLandscapeNative == isLandscapeFrame;
+
+    if (!isFrameInNativeOrientation) {
+      // フレームは既にプラットフォーム/プラグインによって方向補正されている
+      return 0;
+    }
+
+    // フレームはセンサーのネイティブ方向のまま → ソフトウェア回転が必要
+    final deviceRotation = _deviceOrientationToDegrees(controller.value.deviceOrientation);
+    final isFrontCamera = controller.description.lensDirection == CameraLensDirection.front;
+    if (isFrontCamera) {
+      return (sensorOrientation + deviceRotation) % 360;
+    }
+    return (sensorOrientation - deviceRotation + 360) % 360;
+  }
+
+  int _deviceOrientationToDegrees(DeviceOrientation orientation) {
+    if (orientation == DeviceOrientation.portraitUp) return 0;
+    if (orientation == DeviceOrientation.landscapeLeft) return 90;
+    if (orientation == DeviceOrientation.portraitDown) return 180;
+    if (orientation == DeviceOrientation.landscapeRight) return 270;
+    return 0;
+  }
+
+  Size _rotatedPreviewSize(Size previewSize, int rotationDegrees) {
+    final isRotated = rotationDegrees == 90 || rotationDegrees == 270;
+    return isRotated ? previewSize.flipped : previewSize;
+  }
+
+  Rect _calculatePreviewRect(Size screenSize, Size previewSize) {
+    final fitted = applyBoxFit(BoxFit.cover, previewSize, screenSize);
+    final scaleX = fitted.destination.width / previewSize.width;
+    final scaleY = fitted.destination.height / previewSize.height;
+    final double scale = scaleX > scaleY ? scaleX : scaleY;
+    final fittedSize = Size(previewSize.width * scale, previewSize.height * scale);
+    return Alignment.center.inscribe(fittedSize, Offset.zero & screenSize);
+  }
+
   InputImageFormat? _getInputImageFormat(ImageFormatGroup group) {
     return switch (group) {
       ImageFormatGroup.nv21 => InputImageFormat.nv21,
       ImageFormatGroup.bgra8888 => InputImageFormat.bgra8888,
       _ => null,
     };
+  }
+
+  Size _rotatedCaptureSize(Size imageSize, int rotationDegrees) {
+    final isRotated = rotationDegrees == 90 || rotationDegrees == 270;
+    return isRotated ? Size(imageSize.height, imageSize.width) : imageSize;
+  }
+
+  Offset _rotateCapturePoint(Offset point, Size imageSize, int rotationDegrees) {
+    if (rotationDegrees == 90) {
+      return Offset(point.dy, imageSize.width - point.dx);
+    }
+    if (rotationDegrees == 180) {
+      return Offset(imageSize.width - point.dx, imageSize.height - point.dy);
+    }
+    if (rotationDegrees == 270) {
+      return Offset(imageSize.height - point.dy, point.dx);
+    }
+    return point;
   }
 
   // ---------------------------------------------------------------------------
@@ -856,12 +980,13 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         final screenSize = Size(constraints.maxWidth, constraints.maxHeight);
         _widgetSize = screenSize;
         final previewSize = controller.value.previewSize;
-        final isLandscape =
-            controller.description.sensorOrientation == 90 ||
-            controller.description.sensorOrientation == 270;
+        final rotationDegrees = _rotationCompensationDegrees(controller);
         final textureSize = previewSize == null
             ? Size.zero
-            : (isLandscape ? previewSize.flipped : previewSize);
+            : _rotatedPreviewSize(previewSize, rotationDegrees);
+        _previewRect = textureSize.isEmpty
+            ? Rect.zero
+            : _calculatePreviewRect(screenSize, textureSize);
 
         _updateNativeScanWindowWithLayout(screenSize, textureSize);
 
@@ -869,7 +994,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
           fit: StackFit.expand,
           children: [
             // カメラプレビュー
-            _CameraPreview(controller: controller, screenSize: screenSize),
+            _CameraPreview(
+              controller: controller,
+              previewRect: _previewRect,
+              previewSize: textureSize,
+            ),
             // スキャンウィンドウオーバーレイ
             if (widget.showScanWindow && widget.scanWindowMarginRatio != null)
               CustomPaint(
@@ -881,7 +1010,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
                 ),
               ),
             // スムーズバーコードオーバーレイ
-            if (widget.showOverlay)
+            if (widget.showOverlay && !_previewRect.isEmpty && !_imageSize.isEmpty)
               AnimatedBuilder(
                 animation: _overlayController,
                 builder: (context, _) {
@@ -890,16 +1019,21 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
                     return const SizedBox.shrink();
                   }
 
+                  final rotation = _inputImageRotation;
+                  if (rotation == null) {
+                    return const SizedBox.shrink();
+                  }
+
                   return CustomPaint(
                     size: screenSize,
                     painter: _SmoothBarcodeOverlayPainter(
                       trackedBarcodes: trackedBarcodes,
                       imageSize: _imageSize,
-                      screenSize: screenSize,
+                      previewRect: _previewRect,
+                      rotation: rotation,
+                      lensDirection: controller.description.lensDirection,
                       style: widget.overlayStyle,
                       color: overlayColor,
-                      isFrontCamera:
-                          controller.description.lensDirection == CameraLensDirection.front,
                     ),
                   );
                 },
@@ -916,10 +1050,15 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 // =============================================================================
 
 class _CameraPreview extends StatelessWidget {
-  const _CameraPreview({required this.controller, required this.screenSize});
+  const _CameraPreview({
+    required this.controller,
+    required this.previewRect,
+    required this.previewSize,
+  });
 
   final CameraController controller;
-  final Size screenSize;
+  final Rect previewRect;
+  final Size previewSize;
 
   @override
   Widget build(BuildContext context) {
@@ -927,27 +1066,18 @@ class _CameraPreview extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final previewSize = controller.value.previewSize;
-    if (previewSize == null) {
+    if (previewRect.isEmpty || previewSize.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final isLandscape =
-        controller.description.sensorOrientation == 90 ||
-        controller.description.sensorOrientation == 270;
-    final aspectRatio = isLandscape
-        ? previewSize.height / previewSize.width
-        : previewSize.width / previewSize.height;
-
-    return ClipRect(
-      child: OverflowBox(
-        child: FittedBox(
-          fit: BoxFit.cover,
-          child: SizedBox(
-            width: screenSize.width,
-            height: screenSize.width / aspectRatio,
-            child: CameraPreview(controller),
-          ),
+    return Positioned.fromRect(
+      rect: previewRect,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: previewSize.width,
+          height: previewSize.height,
+          child: CameraPreview(controller),
         ),
       ),
     );
@@ -1157,18 +1287,20 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
   _SmoothBarcodeOverlayPainter({
     required this.trackedBarcodes,
     required this.imageSize,
-    required this.screenSize,
+    required this.previewRect,
+    required this.rotation,
+    required this.lensDirection,
     required this.style,
     required this.color,
-    required this.isFrontCamera,
   });
 
   final List<_TrackedBarcode> trackedBarcodes;
   final Size imageSize;
-  final Size screenSize;
+  final Rect previewRect;
+  final InputImageRotation rotation;
+  final CameraLensDirection lensDirection;
   final BarcodeOverlayStyle style;
   final Color color;
-  final bool isFrontCamera;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1303,21 +1435,13 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
   }
 
   Offset _transformPoint(Offset point) {
-    var x = point.dx;
-    final y = point.dy;
-
-    if (isFrontCamera) {
-      x = imageSize.width - x;
-    }
-
-    final scaleX = screenSize.width / imageSize.width;
-    final scaleY = screenSize.height / imageSize.height;
-    final scale = scaleX > scaleY ? scaleX : scaleY;
-
-    final offsetX = (screenSize.width - imageSize.width * scale) / 2;
-    final offsetY = (screenSize.height - imageSize.height * scale) / 2;
-
-    return Offset(x * scale + offsetX, y * scale + offsetY);
+    return _translatePoint(
+      point,
+      imageSize: imageSize,
+      previewRect: previewRect,
+      rotation: rotation,
+      lensDirection: lensDirection,
+    );
   }
 
   @override
@@ -1435,6 +1559,71 @@ class _ScanWindowPainter extends CustomPainter {
   }
 }
 
+Offset _translatePoint(
+  Offset point, {
+  required Size imageSize,
+  required Rect previewRect,
+  required InputImageRotation rotation,
+  required CameraLensDirection lensDirection,
+}) {
+  final previewSize = previewRect.size;
+  final translatedX = _translateX(
+    point.dx,
+    canvasSize: previewSize,
+    imageSize: imageSize,
+    rotation: rotation,
+    lensDirection: lensDirection,
+  );
+  final translatedY = _translateY(
+    point.dy,
+    canvasSize: previewSize,
+    imageSize: imageSize,
+    rotation: rotation,
+    lensDirection: lensDirection,
+  );
+
+  return Offset(previewRect.left + translatedX, previewRect.top + translatedY);
+}
+
+double _translateX(
+  double x, {
+  required Size canvasSize,
+  required Size imageSize,
+  required InputImageRotation rotation,
+  required CameraLensDirection lensDirection,
+}) {
+  switch (rotation) {
+    case InputImageRotation.rotation90deg:
+      return x * canvasSize.width / (Platform.isIOS ? imageSize.width : imageSize.height);
+    case InputImageRotation.rotation270deg:
+      return canvasSize.width -
+          x * canvasSize.width / (Platform.isIOS ? imageSize.width : imageSize.height);
+    case InputImageRotation.rotation0deg:
+    case InputImageRotation.rotation180deg:
+      if (lensDirection == CameraLensDirection.back) {
+        return x * canvasSize.width / imageSize.width;
+      }
+      return canvasSize.width - x * canvasSize.width / imageSize.width;
+  }
+}
+
+double _translateY(
+  double y, {
+  required Size canvasSize,
+  required Size imageSize,
+  required InputImageRotation rotation,
+  required CameraLensDirection lensDirection,
+}) {
+  switch (rotation) {
+    case InputImageRotation.rotation90deg:
+    case InputImageRotation.rotation270deg:
+      return y * canvasSize.height / (Platform.isIOS ? imageSize.height : imageSize.width);
+    case InputImageRotation.rotation0deg:
+    case InputImageRotation.rotation180deg:
+      return y * canvasSize.height / imageSize.height;
+  }
+}
+
 // =============================================================================
 // ストリームフレーム変換用ヘルパー（Isolate対応）
 // =============================================================================
@@ -1445,7 +1634,7 @@ class _FrameConvertParams {
     required this.width,
     required this.height,
     required this.format,
-    required this.sensorOrientation,
+    required this.rotationDegrees,
     this.quality = 80,
   });
 
@@ -1453,7 +1642,7 @@ class _FrameConvertParams {
   final int width;
   final int height;
   final ImageFormatGroup format;
-  final int sensorOrientation;
+  final int rotationDegrees;
   final int quality;
 }
 
@@ -1478,11 +1667,11 @@ Uint8List? _convertFrameToJpeg(_FrameConvertParams params) {
 
     if (image == null) return null;
 
-    if (params.sensorOrientation == 90) {
+    if (params.rotationDegrees == 90) {
       image = img.copyRotate(image, angle: 90);
-    } else if (params.sensorOrientation == 180) {
+    } else if (params.rotationDegrees == 180) {
       image = img.copyRotate(image, angle: 180);
-    } else if (params.sensorOrientation == 270) {
+    } else if (params.rotationDegrees == 270) {
       image = img.copyRotate(image, angle: 270);
     }
 
