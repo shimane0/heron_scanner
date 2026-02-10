@@ -156,8 +156,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   // ネイティブへ送信済みのscanWindow
   Rect? _lastSentScanWindow;
 
-  // ストリームフレームキャプチャ用
-  CameraImage? _lastDetectedFrame;
+  // ストリームフレームキャプチャ用（CameraImageを保持せずコピー済みデータのみ保持）
+  _FrameConvertParams? _lastDetectedFrameParams;
   Size? _lastDetectedFrameSize;
 
   // ---------------------------------------------------------------------------
@@ -415,6 +415,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final controller = _cameraController;
     _cameraController = null;
     _isInitialized = false;
+    _lastDetectedFrameParams = null;
+    _lastDetectedFrameSize = null;
     controller?.dispose();
     _barcodeScanner?.close();
     super.dispose();
@@ -534,7 +536,19 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       // 自動停止タイマー更新
       if (detectedBarcodes.isNotEmpty) {
         _lastDetectionTime = DateTime.now();
-        _lastDetectedFrame = image;
+        // CameraImageを保持せず、バイトデータのコピーのみを保存
+        // （iOSではCameraImageがCVPixelBufferプールの参照を保持するため、
+        //  直接保持するとバッファプール枯渇でクラッシュする）
+        _lastDetectedFrameParams = _FrameConvertParams(
+          planes: image.planes
+              .map((plane) => _PlaneData(Uint8List.fromList(plane.bytes), plane.bytesPerRow))
+              .toList(),
+          width: image.width,
+          height: image.height,
+          format: image.format.group,
+          sensorOrientation: controller.description.sensorOrientation,
+          quality: widget.captureQuality,
+        );
         _lastDetectedFrameSize = imageSize;
       } else {
         _checkAutoStop();
@@ -711,24 +725,14 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   // ---------------------------------------------------------------------------
 
   Future<CaptureResult?> _captureStreamFrame(DetectedBarcode barcode, Size scanImageSize) async {
-    final frame = _lastDetectedFrame;
+    final params = _lastDetectedFrameParams;
     final frameSize = _lastDetectedFrameSize;
-    if (frame == null || frameSize == null || !mounted) {
+    if (params == null || frameSize == null || !mounted) {
       return captureImageWithCamera(barcode, scanImageSize);
     }
 
     try {
-      final jpegBytes = await compute(
-        _convertFrameToJpeg,
-        _FrameConvertParams(
-          planes: frame.planes.map((plane) => _PlaneData(plane.bytes, plane.bytesPerRow)).toList(),
-          width: frame.width,
-          height: frame.height,
-          format: frame.format.group,
-          sensorOrientation: _cameraController?.description.sensorOrientation ?? 0,
-          quality: widget.captureQuality,
-        ),
-      );
+      final jpegBytes = await compute(_convertFrameToJpeg, params);
 
       if (jpegBytes == null || !mounted) {
         return captureImageWithCamera(barcode, scanImageSize);
