@@ -427,19 +427,24 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _cameraController;
-    if (controller == null) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_isAutoStopped) {
+          _initializeCamera();
+        }
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.paused:
+        final controller = _cameraController;
+        if (controller == null) return;
 
-    if (state == AppLifecycleState.inactive) {
-      _cameraController = null;
-      if (mounted) {
-        setState(() => _isInitialized = false);
-      }
-      controller.dispose();
-    } else if (state == AppLifecycleState.resumed) {
-      if (!_isAutoStopped) {
-        _initializeCamera();
-      }
+        _cameraController = null;
+        if (mounted) {
+          setState(() => _isInitialized = false);
+        }
+        controller.dispose();
+      case AppLifecycleState.detached:
+        break;
     }
   }
 
