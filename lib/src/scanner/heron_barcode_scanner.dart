@@ -137,6 +137,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   BarcodeScanner? _barcodeScanner;
   bool _isProcessing = false;
   bool _isInitialized = false;
+  bool _isInitializing = false;
   List<CameraDescription>? _cameras;
 
   // オーバーレイ用の状態
@@ -418,6 +419,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final controller = _cameraController;
     _cameraController = null;
     _isInitialized = false;
+    _isInitializing = false;
     _lastDetectedFrameParams = null;
     _lastDetectedFrameSize = null;
     controller?.dispose();
@@ -429,7 +431,7 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
-        if (!_isAutoStopped) {
+        if (!_isAutoStopped && !_isInitializing && _cameraController == null) {
           _initializeCamera();
         }
       case AppLifecycleState.inactive:
@@ -457,13 +459,17 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   }
 
   Future<void> _initializeCamera() async {
-    if (_cameraController != null) {
-      final oldController = _cameraController;
-      _cameraController = null;
-      await oldController?.dispose();
-    }
+    // 並行初期化を防止
+    if (_isInitializing) return;
+    _isInitializing = true;
 
     try {
+      if (_cameraController != null) {
+        final oldController = _cameraController;
+        _cameraController = null;
+        await oldController?.dispose();
+      }
+
       _cameras = await availableCameras();
       if (_cameras == null || _cameras!.isEmpty) return;
       if (!mounted) return;
@@ -494,6 +500,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       widget.onCameraReady?.call(controller);
     } on Exception catch (e) {
       debugPrint('Camera initialization error: $e');
+    } finally {
+      _isInitializing = false;
     }
   }
 
