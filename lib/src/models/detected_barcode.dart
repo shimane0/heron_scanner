@@ -39,21 +39,21 @@ class DetectedBarcode {
 
   /// フォーマットの表示名を返す
   String get formatName => switch (format) {
-        BarcodeFormat.aztec => 'Aztec',
-        BarcodeFormat.codabar => 'Codabar',
-        BarcodeFormat.code39 => 'Code 39',
-        BarcodeFormat.code93 => 'Code 93',
-        BarcodeFormat.code128 => 'Code 128',
-        BarcodeFormat.dataMatrix => 'Data Matrix',
-        BarcodeFormat.ean8 => 'EAN-8',
-        BarcodeFormat.ean13 => 'EAN-13',
-        BarcodeFormat.itf => 'ITF',
-        BarcodeFormat.pdf417 => 'PDF417',
-        BarcodeFormat.qrCode => 'QR Code',
-        BarcodeFormat.upca => 'UPC-A',
-        BarcodeFormat.upce => 'UPC-E',
-        _ => 'Unknown',
-      };
+    BarcodeFormat.aztec => 'Aztec',
+    BarcodeFormat.codabar => 'Codabar',
+    BarcodeFormat.code39 => 'Code 39',
+    BarcodeFormat.code93 => 'Code 93',
+    BarcodeFormat.code128 => 'Code 128',
+    BarcodeFormat.dataMatrix => 'Data Matrix',
+    BarcodeFormat.ean8 => 'EAN-8',
+    BarcodeFormat.ean13 => 'EAN-13',
+    BarcodeFormat.itf => 'ITF',
+    BarcodeFormat.pdf417 => 'PDF417',
+    BarcodeFormat.qrCode => 'QR Code',
+    BarcodeFormat.upca => 'UPC-A',
+    BarcodeFormat.upce => 'UPC-E',
+    _ => 'Unknown',
+  };
 
   @override
   String toString() => 'DetectedBarcode($rawValue, $formatName)';

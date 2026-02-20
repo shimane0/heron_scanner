@@ -65,6 +65,11 @@ class ScanWindowService {
   /// 便利メソッド。旧APIからの移行用。
   static ScanWindowRect rectFromList(List<double> values) {
     assert(values.length == 4, 'values must have 4 elements');
-    return ScanWindowRect(left: values[0], top: values[1], right: values[2], bottom: values[3]);
+    return ScanWindowRect(
+      left: values[0],
+      top: values[1],
+      right: values[2],
+      bottom: values[3],
+    );
   }
 }

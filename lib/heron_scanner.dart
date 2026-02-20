@@ -53,4 +53,9 @@ export 'src/services/scan_window_service.dart';
 
 // Pigeon生成API（上級利用者向け）
 export 'src/generated/scan_window_api.g.dart'
-    show ScanWindowHostApi, ScanWindowRect, BarcodeBoundingBox, ImageDimensions, FilterResult;
+    show
+        ScanWindowHostApi,
+        ScanWindowRect,
+        BarcodeBoundingBox,
+        ImageDimensions,
+        FilterResult;

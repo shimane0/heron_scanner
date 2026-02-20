@@ -14,20 +14,24 @@ PlatformException _createConnectionError(String channelName) {
     message: 'Unable to establish connection on channel: "$channelName".',
   );
 }
+
 bool _deepEquals(Object? a, Object? b) {
   if (a is List && b is List) {
     return a.length == b.length &&
-        a.indexed
-        .every(((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]));
+        a.indexed.every(
+          ((int, dynamic) item) => _deepEquals(item.$2, b[item.$1]),
+        );
   }
   if (a is Map && b is Map) {
-    return a.length == b.length && a.entries.every((MapEntry<Object?, Object?> entry) =>
-        (b as Map<Object?, Object?>).containsKey(entry.key) &&
-        _deepEquals(entry.value, b[entry.key]));
+    return a.length == b.length &&
+        a.entries.every(
+          (MapEntry<Object?, Object?> entry) =>
+              (b as Map<Object?, Object?>).containsKey(entry.key) &&
+              _deepEquals(entry.value, b[entry.key]),
+        );
   }
   return a == b;
 }
-
 
 /// スキャンウィンドウの矩形情報（正規化座標 0.0〜1.0）
 class ScanWindowRect {
@@ -51,16 +55,12 @@ class ScanWindowRect {
   double bottom;
 
   List<Object?> _toList() {
-    return <Object?>[
-      left,
-      top,
-      right,
-      bottom,
-    ];
+    return <Object?>[left, top, right, bottom];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ScanWindowRect decode(Object result) {
     result as List<Object?>;
@@ -86,8 +86,7 @@ class ScanWindowRect {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// バーコードの境界ボックス（ピクセル座標）
@@ -108,16 +107,12 @@ class BarcodeBoundingBox {
   double bottom;
 
   List<Object?> _toList() {
-    return <Object?>[
-      left,
-      top,
-      right,
-      bottom,
-    ];
+    return <Object?>[left, top, right, bottom];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static BarcodeBoundingBox decode(Object result) {
     result as List<Object?>;
@@ -143,30 +138,24 @@ class BarcodeBoundingBox {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// 画像サイズ
 class ImageDimensions {
-  ImageDimensions({
-    required this.width,
-    required this.height,
-  });
+  ImageDimensions({required this.width, required this.height});
 
   double width;
 
   double height;
 
   List<Object?> _toList() {
-    return <Object?>[
-      width,
-      height,
-    ];
+    return <Object?>[width, height];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static ImageDimensions decode(Object result) {
     result as List<Object?>;
@@ -190,33 +179,27 @@ class ImageDimensions {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
 
 /// バーコードフィルタリング結果
 class FilterResult {
-  FilterResult({
-    required this.indices,
-  });
+  FilterResult({required this.indices});
 
   /// フィルタリング後のインデックスリスト
   List<int> indices;
 
   List<Object?> _toList() {
-    return <Object?>[
-      indices,
-    ];
+    return <Object?>[indices];
   }
 
   Object encode() {
-    return _toList();  }
+    return _toList();
+  }
 
   static FilterResult decode(Object result) {
     result as List<Object?>;
-    return FilterResult(
-      indices: (result[0] as List<Object?>?)!.cast<int>(),
-    );
+    return FilterResult(indices: (result[0] as List<Object?>?)!.cast<int>());
   }
 
   @override
@@ -233,10 +216,8 @@ class FilterResult {
 
   @override
   // ignore: avoid_equals_and_hash_code_on_mutable_classes
-  int get hashCode => Object.hashAll(_toList())
-;
+  int get hashCode => Object.hashAll(_toList());
 }
-
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -245,16 +226,16 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is ScanWindowRect) {
+    } else if (value is ScanWindowRect) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
-    }    else if (value is BarcodeBoundingBox) {
+    } else if (value is BarcodeBoundingBox) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    }    else if (value is ImageDimensions) {
+    } else if (value is ImageDimensions) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
-    }    else if (value is FilterResult) {
+    } else if (value is FilterResult) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
     } else {
@@ -265,13 +246,13 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         return ScanWindowRect.decode(readValue(buffer)!);
-      case 130: 
+      case 130:
         return BarcodeBoundingBox.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return ImageDimensions.decode(readValue(buffer)!);
-      case 132: 
+      case 132:
         return FilterResult.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -287,9 +268,13 @@ class ScanWindowHostApi {
   /// Constructor for [ScanWindowHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  ScanWindowHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
-      : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  ScanWindowHostApi({
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) : pigeonVar_binaryMessenger = binaryMessenger,
+       pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty
+           ? '.$messageChannelSuffix'
+           : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -300,13 +285,17 @@ class ScanWindowHostApi {
   ///
   /// [rect] がnullの場合、スキャンウィンドウを無効化（全画面スキャン）
   Future<void> updateScanWindow(ScanWindowRect? rect) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.updateScanWindow$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.updateScanWindow$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+          pigeonVar_channelName,
+          pigeonChannelCodec,
+          binaryMessenger: pigeonVar_binaryMessenger,
+        );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[rect],
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[rect]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -327,14 +316,21 @@ class ScanWindowHostApi {
   /// [boundingBox] バーコードの境界ボックス（ピクセル座標）
   /// [imageSize] 画像サイズ（センサーのrawサイズ）
   /// スキャンウィンドウ未設定時はtrueを返す
-  Future<bool> isBarcodeInScanWindow(BarcodeBoundingBox boundingBox, ImageDimensions imageSize) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.isBarcodeInScanWindow$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
+  Future<bool> isBarcodeInScanWindow(
+    BarcodeBoundingBox boundingBox,
+    ImageDimensions imageSize,
+  ) async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.isBarcodeInScanWindow$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+          pigeonVar_channelName,
+          pigeonChannelCodec,
+          binaryMessenger: pigeonVar_binaryMessenger,
+        );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[boundingBox, imageSize],
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[boundingBox, imageSize]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {
@@ -360,14 +356,21 @@ class ScanWindowHostApi {
   /// [boundingBoxes] 各バーコードの境界ボックスリスト
   /// [imageSize] 画像サイズ
   /// スキャンウィンドウ内のバーコードのインデックスリストを返す
-  Future<FilterResult> filterBarcodes(List<BarcodeBoundingBox> boundingBoxes, ImageDimensions imageSize) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.filterBarcodes$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-      pigeonVar_channelName,
-      pigeonChannelCodec,
-      binaryMessenger: pigeonVar_binaryMessenger,
+  Future<FilterResult> filterBarcodes(
+    List<BarcodeBoundingBox> boundingBoxes,
+    ImageDimensions imageSize,
+  ) async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.heron_scanner.ScanWindowHostApi.filterBarcodes$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+          pigeonVar_channelName,
+          pigeonChannelCodec,
+          binaryMessenger: pigeonVar_binaryMessenger,
+        );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[boundingBoxes, imageSize],
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[boundingBoxes, imageSize]);
     final List<Object?>? pigeonVar_replyList =
         await pigeonVar_sendFuture as List<Object?>?;
     if (pigeonVar_replyList == null) {

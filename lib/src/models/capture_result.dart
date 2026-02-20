@@ -14,7 +14,10 @@ class CodeCorner {
 
   /// JSONからCodeCornerを生成
   factory CodeCorner.fromJson(Map<String, dynamic> json) {
-    return CodeCorner(x: (json['x'] as num).toDouble(), y: (json['y'] as num).toDouble());
+    return CodeCorner(
+      x: (json['x'] as num).toDouble(),
+      y: (json['y'] as num).toDouble(),
+    );
   }
 
   /// 正規化されたX座標（0.0〜1.0）
@@ -34,7 +37,10 @@ class CodeCorner {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is CodeCorner && runtimeType == other.runtimeType && x == other.x && y == other.y;
+      other is CodeCorner &&
+          runtimeType == other.runtimeType &&
+          x == other.x &&
+          y == other.y;
 
   @override
   int get hashCode => Object.hash(x, y);
@@ -64,7 +70,9 @@ class CodeMetadata {
   factory CodeMetadata.fromJson(Map<String, dynamic> json) {
     final cornersJson = json['codeCorners'] as List<dynamic>;
     return CodeMetadata(
-      codeCorners: cornersJson.map((c) => CodeCorner.fromJson(c as Map<String, dynamic>)).toList(),
+      codeCorners: cornersJson
+          .map((c) => CodeCorner.fromJson(c as Map<String, dynamic>))
+          .toList(),
       codeType: json['codeType'] as String,
     );
   }
@@ -80,7 +88,10 @@ class CodeMetadata {
 
   /// JSONマップへ変換
   Map<String, dynamic> toJson() {
-    return {'codeCorners': codeCorners.map((c) => c.toJson()).toList(), 'codeType': codeType};
+    return {
+      'codeCorners': codeCorners.map((c) => c.toJson()).toList(),
+      'codeType': codeType,
+    };
   }
 
   /// JSON文字列へ変換（DB保存用）

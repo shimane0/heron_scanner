@@ -84,7 +84,8 @@ class HeronBarcodeScanner extends StatefulWidget {
   final void Function(CameraController controller)? onCameraReady;
 
   /// バーコード検出状態が変化した時のコールバック（オーバーレイ表示/非表示）
-  final void Function({required bool hasDetectedBarcodes})? onDetectionStateChanged;
+  final void Function({required bool hasDetectedBarcodes})?
+  onDetectionStateChanged;
 
   /// 自動停止時のコールバック
   final VoidCallback? onAutoStopped;
@@ -178,7 +179,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   bool get isAutoStopped => _isAutoStopped;
 
   /// バーコードを検出中か（オーバーレイが実際に表示されているか）
-  bool get hasDetectedBarcodes => _overlayController.trackedBarcodes.any((b) => b.fadeProgress > 0);
+  bool get hasDetectedBarcodes =>
+      _overlayController.trackedBarcodes.any((b) => b.fadeProgress > 0);
 
   /// 画像キャプチャモードか
   bool _isCapturing = false;
@@ -219,7 +221,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   }
 
   /// カメラでの写真撮影による画像保存（高画質だが座標ずれの可能性あり）
-  Future<CaptureResult?> captureImageWithCamera(DetectedBarcode barcode, Size scanImageSize) async {
+  Future<CaptureResult?> captureImageWithCamera(
+    DetectedBarcode barcode,
+    Size scanImageSize,
+  ) async {
     final controller = _cameraController;
     if (controller == null || !controller.value.isInitialized || !mounted) {
       return null;
@@ -237,7 +242,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       if (!mounted) return null;
 
       final tempDir = await getTemporaryDirectory();
-      final captureDir = Directory(p.join(tempDir.path, widget.captureSubdirectory));
+      final captureDir = Directory(
+        p.join(tempDir.path, widget.captureSubdirectory),
+      );
       if (!captureDir.existsSync()) {
         await captureDir.create(recursive: true);
       }
@@ -258,7 +265,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       return CaptureResult(imagePath: destPath, codeMetadata: codeMetadata);
     } on Exception catch (e) {
       debugPrint('Image capture error: $e');
-      if (mounted && _cameraController != null && !_cameraController!.value.isStreamingImages) {
+      if (mounted &&
+          _cameraController != null &&
+          !_cameraController!.value.isStreamingImages) {
         try {
           await _cameraController!.startImageStream(_processImage);
         } on Exception catch (e2) {
@@ -277,7 +286,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 
     try {
       _torchEnabled = !_torchEnabled;
-      await _cameraController!.setFlashMode(_torchEnabled ? FlashMode.torch : FlashMode.off);
+      await _cameraController!.setFlashMode(
+        _torchEnabled ? FlashMode.torch : FlashMode.off,
+      );
       setState(() {});
     } on Exception catch (e) {
       debugPrint('Torch toggle error: $e');
@@ -304,7 +315,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         newCamera,
         widget.resolution,
         enableAudio: false,
-        imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.nv21
+            : ImageFormatGroup.bgra8888,
       );
 
       await controller.initialize();
@@ -347,7 +360,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     _lastDetectionTime = DateTime.now();
 
     try {
-      if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      if (_cameraController == null ||
+          !_cameraController!.value.isInitialized) {
         await _initializeCamera();
       } else if (!_cameraController!.value.isStreamingImages) {
         await _cameraController!.startImageStream(_processImage);
@@ -361,7 +375,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   Future<void> clearCapturedImages() async {
     try {
       final tempDir = await getTemporaryDirectory();
-      final captureDir = Directory(p.join(tempDir.path, widget.captureSubdirectory));
+      final captureDir = Directory(
+        p.join(tempDir.path, widget.captureSubdirectory),
+      );
       if (captureDir.existsSync()) {
         await captureDir.delete(recursive: true);
       }
@@ -371,7 +387,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   }
 
   /// 一括スキャン用の一時画像をクリア（static版）
-  static Future<void> clearImages([String subdirectory = 'heron_scanner']) async {
+  static Future<void> clearImages([
+    String subdirectory = 'heron_scanner',
+  ]) async {
     try {
       final tempDir = await getTemporaryDirectory();
       final captureDir = Directory(p.join(tempDir.path, subdirectory));
@@ -391,7 +409,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _overlayController = _SmoothOverlayController(vsync: this, style: widget.overlayStyle);
+    _overlayController = _SmoothOverlayController(
+      vsync: this,
+      style: widget.overlayStyle,
+    );
     _overlayController.addListener(_onOverlayChanged);
     _initializeScanner();
     _initializeCamera();
@@ -401,7 +422,8 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   void didUpdateWidget(HeronBarcodeScanner oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.scanWindowMarginRatio != widget.scanWindowMarginRatio) {
-      if (widget.scanWindowMarginRatio == null || widget.scanWindowMarginRatio! <= 0) {
+      if (widget.scanWindowMarginRatio == null ||
+          widget.scanWindowMarginRatio! <= 0) {
         _lastSentScanWindow = null;
         ScanWindowService.updateScanWindow(null);
       }
@@ -483,7 +505,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         camera,
         widget.resolution,
         enableAudio: false,
-        imageFormatGroup: Platform.isAndroid ? ImageFormatGroup.nv21 : ImageFormatGroup.bgra8888,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.nv21
+            : ImageFormatGroup.bgra8888,
       );
 
       await controller.initialize();
@@ -511,7 +535,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
 
   Future<void> _processImage(CameraImage image) async {
     final controller = _cameraController;
-    if (_isProcessing || _barcodeScanner == null || _isAutoStopped || controller == null) return;
+    if (_isProcessing ||
+        _barcodeScanner == null ||
+        _isAutoStopped ||
+        controller == null)
+      return;
     _isProcessing = true;
 
     try {
@@ -528,7 +556,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         return;
       }
 
-      final captureRotationDegrees = _captureRotationDegrees(controller, image.width, image.height);
+      final captureRotationDegrees = _captureRotationDegrees(
+        controller,
+        image.width,
+        image.height,
+      );
 
       final barcodes = await _barcodeScanner!.processImage(inputImage);
 
@@ -544,14 +576,22 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
           rawValue: barcode.rawValue ?? '',
           format: barcode.format,
           boundingBox: barcode.boundingBox,
-          corners: barcode.cornerPoints.isNotEmpty ? barcode.cornerPoints : null,
+          corners: barcode.cornerPoints.isNotEmpty
+              ? barcode.cornerPoints
+              : null,
         );
       }).toList();
 
       // スキャンウィンドウフィルタリング（画面座標ベース）
       final marginRatio = widget.scanWindowMarginRatio;
-      if (marginRatio != null && marginRatio > 0 && detectedBarcodes.isNotEmpty) {
-        detectedBarcodes = _filterByScanWindow(detectedBarcodes, imageSize, marginRatio);
+      if (marginRatio != null &&
+          marginRatio > 0 &&
+          detectedBarcodes.isNotEmpty) {
+        detectedBarcodes = _filterByScanWindow(
+          detectedBarcodes,
+          imageSize,
+          marginRatio,
+        );
       }
 
       // 自動停止タイマー更新
@@ -562,7 +602,12 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
         //  直接保持するとバッファプール枯渇でクラッシュする）
         _lastDetectedFrameParams = _FrameConvertParams(
           planes: image.planes
-              .map((plane) => _PlaneData(Uint8List.fromList(plane.bytes), plane.bytesPerRow))
+              .map(
+                (plane) => _PlaneData(
+                  Uint8List.fromList(plane.bytes),
+                  plane.bytesPerRow,
+                ),
+              )
               .toList(),
           width: image.width,
           height: image.height,
@@ -625,7 +670,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final previewRect = _previewRect;
     final rotation = _inputImageRotation;
     final controller = _cameraController;
-    if (screenSize.isEmpty || previewRect.isEmpty || rotation == null || controller == null) {
+    if (screenSize.isEmpty ||
+        previewRect.isEmpty ||
+        rotation == null ||
+        controller == null) {
       return barcodes;
     }
 
@@ -647,7 +695,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   }
 
   /// ネイティブ側のscanWindowを更新（レイアウトに合わせて補正）
-  Future<void> _updateNativeScanWindowWithLayout(Size widgetSize, Size textureSize) async {
+  Future<void> _updateNativeScanWindowWithLayout(
+    Size widgetSize,
+    Size textureSize,
+  ) async {
     final marginRatio = widget.scanWindowMarginRatio;
     if (marginRatio == null || marginRatio <= 0) {
       if (_lastSentScanWindow != null) {
@@ -703,7 +754,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     required Size textureSize,
     required Size widgetSize,
   }) {
-    final fittedTextureSize = applyBoxFit(BoxFit.cover, textureSize, widgetSize);
+    final fittedTextureSize = applyBoxFit(
+      BoxFit.cover,
+      textureSize,
+      widgetSize,
+    );
 
     var sx = fittedTextureSize.destination.width / textureSize.width;
     var sy = fittedTextureSize.destination.height / textureSize.height;
@@ -739,7 +794,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final currentHasDetected = hasDetectedBarcodes;
     if (currentHasDetected != _lastHasDetected) {
       _lastHasDetected = currentHasDetected;
-      widget.onDetectionStateChanged?.call(hasDetectedBarcodes: currentHasDetected);
+      widget.onDetectionStateChanged?.call(
+        hasDetectedBarcodes: currentHasDetected,
+      );
     }
   }
 
@@ -747,7 +804,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   // 画像キャプチャ（内部）
   // ---------------------------------------------------------------------------
 
-  Future<CaptureResult?> _captureStreamFrame(DetectedBarcode barcode, Size scanImageSize) async {
+  Future<CaptureResult?> _captureStreamFrame(
+    DetectedBarcode barcode,
+    Size scanImageSize,
+  ) async {
     final params = _lastDetectedFrameParams;
     final frameSize = _lastDetectedFrameSize;
     if (params == null || frameSize == null || !mounted) {
@@ -762,7 +822,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       }
 
       final tempDir = await getTemporaryDirectory();
-      final captureDir = Directory(p.join(tempDir.path, widget.captureSubdirectory));
+      final captureDir = Directory(
+        p.join(tempDir.path, widget.captureSubdirectory),
+      );
       if (!captureDir.existsSync()) {
         await captureDir.create(recursive: true);
       }
@@ -793,15 +855,32 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final codeCorners = <CodeCorner>[];
     if (corners != null && corners.length == 4) {
       for (final corner in corners) {
-        codeCorners.add(CodeCorner(x: corner.x / imageSize.width, y: corner.y / imageSize.height));
+        codeCorners.add(
+          CodeCorner(
+            x: corner.x / imageSize.width,
+            y: corner.y / imageSize.height,
+          ),
+        );
       }
     } else {
       final rect = barcode.boundingBox;
       codeCorners.addAll([
-        CodeCorner(x: rect.left / imageSize.width, y: rect.top / imageSize.height),
-        CodeCorner(x: rect.right / imageSize.width, y: rect.top / imageSize.height),
-        CodeCorner(x: rect.right / imageSize.width, y: rect.bottom / imageSize.height),
-        CodeCorner(x: rect.left / imageSize.width, y: rect.bottom / imageSize.height),
+        CodeCorner(
+          x: rect.left / imageSize.width,
+          y: rect.top / imageSize.height,
+        ),
+        CodeCorner(
+          x: rect.right / imageSize.width,
+          y: rect.top / imageSize.height,
+        ),
+        CodeCorner(
+          x: rect.right / imageSize.width,
+          y: rect.bottom / imageSize.height,
+        ),
+        CodeCorner(
+          x: rect.left / imageSize.width,
+          y: rect.bottom / imageSize.height,
+        ),
       ]);
     }
 
@@ -828,14 +907,22 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
       }
     } else {
       final rect = barcode.boundingBox;
-      rawCorners.addAll([rect.topLeft, rect.topRight, rect.bottomRight, rect.bottomLeft]);
+      rawCorners.addAll([
+        rect.topLeft,
+        rect.topRight,
+        rect.bottomRight,
+        rect.bottomLeft,
+      ]);
     }
 
     // ML Kit座標は正立座標系なので、回転後の画像サイズで直接正規化する
     final rotatedSize = _rotatedCaptureSize(imageSize, rotationDegrees);
     final codeCorners = rawCorners
         .map(
-          (point) => CodeCorner(x: point.dx / rotatedSize.width, y: point.dy / rotatedSize.height),
+          (point) => CodeCorner(
+            x: point.dx / rotatedSize.width,
+            y: point.dy / rotatedSize.height,
+          ),
         )
         .toList();
 
@@ -846,7 +933,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   // カメラ画像変換
   // ---------------------------------------------------------------------------
 
-  InputImage? _convertCameraImage(CameraImage image, InputImageRotation rotation) {
+  InputImage? _convertCameraImage(
+    CameraImage image,
+    InputImageRotation rotation,
+  ) {
     final format = _getInputImageFormat(image.format.group);
     if (format == null) return null;
 
@@ -887,8 +977,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final sensorOrientation = controller.description.sensorOrientation;
     if (Platform.isIOS) return sensorOrientation;
 
-    final deviceRotation = _deviceOrientationToDegrees(controller.value.deviceOrientation);
-    final isFrontCamera = controller.description.lensDirection == CameraLensDirection.front;
+    final deviceRotation = _deviceOrientationToDegrees(
+      controller.value.deviceOrientation,
+    );
+    final isFrontCamera =
+        controller.description.lensDirection == CameraLensDirection.front;
 
     if (isFrontCamera) {
       return (sensorOrientation + deviceRotation) % 360;
@@ -902,11 +995,16 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   /// プラットフォームやプラグインの実装に依存せず動的に判定する。
   /// - フレームがセンサーのネイティブ方向のまま → ソフトウェア回転が必要
   /// - フレームが既にプラットフォームによって方向補正済み → 回転不要
-  int _captureRotationDegrees(CameraController controller, int frameWidth, int frameHeight) {
+  int _captureRotationDegrees(
+    CameraController controller,
+    int frameWidth,
+    int frameHeight,
+  ) {
     final sensorOrientation = controller.description.sensorOrientation;
 
     // センサーのネイティブ方向が横長かどうか
-    final isLandscapeNative = sensorOrientation == 90 || sensorOrientation == 270;
+    final isLandscapeNative =
+        sensorOrientation == 90 || sensorOrientation == 270;
     // フレームが横長かどうか
     final isLandscapeFrame = frameWidth > frameHeight;
 
@@ -919,8 +1017,11 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     }
 
     // フレームはセンサーのネイティブ方向のまま → ソフトウェア回転が必要
-    final deviceRotation = _deviceOrientationToDegrees(controller.value.deviceOrientation);
-    final isFrontCamera = controller.description.lensDirection == CameraLensDirection.front;
+    final deviceRotation = _deviceOrientationToDegrees(
+      controller.value.deviceOrientation,
+    );
+    final isFrontCamera =
+        controller.description.lensDirection == CameraLensDirection.front;
     if (isFrontCamera) {
       return (sensorOrientation + deviceRotation) % 360;
     }
@@ -945,7 +1046,10 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
     final scaleX = fitted.destination.width / previewSize.width;
     final scaleY = fitted.destination.height / previewSize.height;
     final double scale = scaleX > scaleY ? scaleX : scaleY;
-    final fittedSize = Size(previewSize.width * scale, previewSize.height * scale);
+    final fittedSize = Size(
+      previewSize.width * scale,
+      previewSize.height * scale,
+    );
     return Alignment.center.inscribe(fittedSize, Offset.zero & screenSize);
   }
 
@@ -969,13 +1073,18 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
   @override
   Widget build(BuildContext context) {
     final controller = _cameraController;
-    if (!_isInitialized || controller == null || !controller.value.isInitialized) {
-      return widget.loadingWidget ?? const Center(child: CircularProgressIndicator());
+    if (!_isInitialized ||
+        controller == null ||
+        !controller.value.isInitialized) {
+      return widget.loadingWidget ??
+          const Center(child: CircularProgressIndicator());
     }
 
     final theme = Theme.of(context);
-    final overlayColor = widget.overlayStyle.cornerColor ?? theme.colorScheme.primary;
-    final scanWindowBorderColor = widget.scanWindowStyle.borderColor ?? theme.colorScheme.primary;
+    final overlayColor =
+        widget.overlayStyle.cornerColor ?? theme.colorScheme.primary;
+    final scanWindowBorderColor =
+        widget.scanWindowStyle.borderColor ?? theme.colorScheme.primary;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1012,7 +1121,9 @@ class HeronBarcodeScannerState extends State<HeronBarcodeScanner>
                 ),
               ),
             // スムーズバーコードオーバーレイ
-            if (widget.showOverlay && !_previewRect.isEmpty && !_imageSize.isEmpty)
+            if (widget.showOverlay &&
+                !_previewRect.isEmpty &&
+                !_imageSize.isEmpty)
               AnimatedBuilder(
                 animation: _overlayController,
                 builder: (context, _) {
@@ -1097,7 +1208,9 @@ class _TrackedBarcode {
     required this.opacity,
     required BarcodeOverlayStyle style,
   }) : currentCorners = _normalizeCorners(
-         barcode.corners?.map((p) => Offset(p.x.toDouble(), p.y.toDouble())).toList() ??
+         barcode.corners
+                 ?.map((p) => Offset(p.x.toDouble(), p.y.toDouble()))
+                 .toList() ??
              _rectToCorners(barcode.boundingBox),
        ),
        currentBoundingBox = barcode.boundingBox,
@@ -1154,15 +1267,29 @@ class _TrackedBarcode {
     lastSeen = DateTime.now();
 
     final rawCorners =
-        newBarcode.corners?.map((p) => Offset(p.x.toDouble(), p.y.toDouble())).toList() ??
+        newBarcode.corners
+            ?.map((p) => Offset(p.x.toDouble(), p.y.toDouble()))
+            .toList() ??
         _rectToCorners(newBarcode.boundingBox);
     final targetCorners = _normalizeCorners(rawCorners);
 
-    for (var i = 0; i < currentCorners.length && i < targetCorners.length; i++) {
-      currentCorners[i] = Offset.lerp(currentCorners[i], targetCorners[i], _style.lerpFactor)!;
+    for (
+      var i = 0;
+      i < currentCorners.length && i < targetCorners.length;
+      i++
+    ) {
+      currentCorners[i] = Offset.lerp(
+        currentCorners[i],
+        targetCorners[i],
+        _style.lerpFactor,
+      )!;
     }
 
-    currentBoundingBox = Rect.lerp(currentBoundingBox, newBarcode.boundingBox, _style.lerpFactor)!;
+    currentBoundingBox = Rect.lerp(
+      currentBoundingBox,
+      newBarcode.boundingBox,
+      _style.lerpFactor,
+    )!;
   }
 
   bool get isExpired {
@@ -1182,8 +1309,10 @@ class _TrackedBarcode {
 
 /// スムーズオーバーレイのコントローラー
 class _SmoothOverlayController extends ChangeNotifier {
-  _SmoothOverlayController({required TickerProvider vsync, required BarcodeOverlayStyle style})
-    : _style = style {
+  _SmoothOverlayController({
+    required TickerProvider vsync,
+    required BarcodeOverlayStyle style,
+  }) : _style = style {
     _ticker = vsync.createTicker(_onTick);
     _ticker.start();
   }
@@ -1270,7 +1399,11 @@ class _SmoothOverlayController extends ChangeNotifier {
         _tracked[existingKey]!.updateWith(barcode);
       } else {
         final newKey = _generateUniqueKey(barcode);
-        _tracked[newKey] = _TrackedBarcode(barcode: barcode, opacity: 1, style: _style);
+        _tracked[newKey] = _TrackedBarcode(
+          barcode: barcode,
+          opacity: 1,
+          style: _style,
+        );
       }
     }
 
@@ -1323,7 +1456,12 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
     _drawAppleStyleCorners(canvas, transformedRect, opacity);
 
     if (style.showLabel) {
-      _drawBarcodeLabel(canvas, transformedRect, tracked.barcode.rawValue, opacity);
+      _drawBarcodeLabel(
+        canvas,
+        transformedRect,
+        tracked.barcode.rawValue,
+        opacity,
+      );
     }
   }
 
@@ -1335,7 +1473,8 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final minSide = rect.width < rect.height ? rect.width : rect.height;
-    final cornerLength = style.cornerLength ?? (minSide * 0.25).clamp(20.0, 40.0);
+    final cornerLength =
+        style.cornerLength ?? (minSide * 0.25).clamp(20.0, 40.0);
     final cornerRadius = style.cornerRadius;
     final padding = style.cornerPadding;
 
@@ -1399,11 +1538,18 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
     );
   }
 
-  void _drawBarcodeLabel(Canvas canvas, Rect rect, String rawValue, double opacity) {
+  void _drawBarcodeLabel(
+    Canvas canvas,
+    Rect rect,
+    String rawValue,
+    double opacity,
+  ) {
     if (rawValue.isEmpty) return;
 
     final maxLen = style.maxLabelLength;
-    final displayText = rawValue.length > maxLen ? '${rawValue.substring(0, maxLen)}...' : rawValue;
+    final displayText = rawValue.length > maxLen
+        ? '${rawValue.substring(0, maxLen)}...'
+        : rawValue;
 
     final textPainter = TextPainter(
       text: TextSpan(
@@ -1457,7 +1603,11 @@ class _SmoothBarcodeOverlayPainter extends CustomPainter {
 // =============================================================================
 
 class _ScanWindowPainter extends CustomPainter {
-  _ScanWindowPainter({required this.marginRatio, required this.style, required this.borderColor});
+  _ScanWindowPainter({
+    required this.marginRatio,
+    required this.style,
+    required this.borderColor,
+  });
 
   final double marginRatio;
   final ScanWindowStyle style;
@@ -1476,11 +1626,18 @@ class _ScanWindowPainter extends CustomPainter {
     final backgroundPath = Path()..addRect(Offset.zero & size);
 
     // スキャンウィンドウのカットアウト（角丸）
-    final cutoutRect = RRect.fromRectAndRadius(scanWindow, Radius.circular(style.cornerRadius));
+    final cutoutRect = RRect.fromRectAndRadius(
+      scanWindow,
+      Radius.circular(style.cornerRadius),
+    );
     final cutoutPath = Path()..addRRect(cutoutRect);
 
     // オーバーレイ描画（カットアウト部分を除く）
-    final overlayPath = Path.combine(PathOperation.difference, backgroundPath, cutoutPath);
+    final overlayPath = Path.combine(
+      PathOperation.difference,
+      backgroundPath,
+      cutoutPath,
+    );
 
     final overlayPaint = Paint()
       ..color = style.overlayColor
@@ -1596,10 +1753,14 @@ double _translateX(
 }) {
   switch (rotation) {
     case InputImageRotation.rotation90deg:
-      return x * canvasSize.width / (Platform.isIOS ? imageSize.width : imageSize.height);
+      return x *
+          canvasSize.width /
+          (Platform.isIOS ? imageSize.width : imageSize.height);
     case InputImageRotation.rotation270deg:
       return canvasSize.width -
-          x * canvasSize.width / (Platform.isIOS ? imageSize.width : imageSize.height);
+          x *
+              canvasSize.width /
+              (Platform.isIOS ? imageSize.width : imageSize.height);
     case InputImageRotation.rotation0deg:
     case InputImageRotation.rotation180deg:
       if (lensDirection == CameraLensDirection.back) {
@@ -1619,7 +1780,9 @@ double _translateY(
   switch (rotation) {
     case InputImageRotation.rotation90deg:
     case InputImageRotation.rotation270deg:
-      return y * canvasSize.height / (Platform.isIOS ? imageSize.height : imageSize.width);
+      return y *
+          canvasSize.height /
+          (Platform.isIOS ? imageSize.height : imageSize.width);
     case InputImageRotation.rotation0deg:
     case InputImageRotation.rotation180deg:
       return y * canvasSize.height / imageSize.height;
@@ -1784,7 +1947,10 @@ List<int> _yuvToRgb(int y, int u, int v) {
   final vValue = v.toDouble() - 128;
 
   final r = (yValue + 1.402 * vValue).round().clamp(0, 255);
-  final g = (yValue - 0.344136 * uValue - 0.714136 * vValue).round().clamp(0, 255);
+  final g = (yValue - 0.344136 * uValue - 0.714136 * vValue).round().clamp(
+    0,
+    255,
+  );
   final b = (yValue + 1.772 * uValue).round().clamp(0, 255);
 
   return [r, g, b];
